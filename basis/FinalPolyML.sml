@@ -545,7 +545,7 @@ local
 
         (* Top-level read-eval-print loop.  This is the normal top-level loop and is
            also used for the debugger. *)
-        fun topLevel {isDebug, nameSpace, exitLoop, exitOnError, isInteractive, startExec, endExec } =
+        fun topLevel {getChar, isDebug, nameSpace, exitLoop, exitOnError, isInteractive, startExec, endExec } =
         let
             (* This is used as the main read-eval-print loop.  It is also invoked
                by running code that has been compiled with the debug option on
@@ -571,7 +571,7 @@ local
                     else printOut (if isDebug then "debug " ^ !prompt1 else !prompt1)
                     else ();
              in
-                case TextIO.input1 TextIO.stdIn of
+                case getChar () of
                     NONE => (endOfFile := true; NONE)
                 |   SOME #"\n" => ( lastWasEol := true; SOME #"\n" )
                 |   SOME ch =>
@@ -1752,7 +1752,7 @@ in
                 end
             in
                 topLevel
-                    { isDebug = true, nameSpace = compositeNameSpace, exitLoop = fn _ => ! exitLoop,
+                    { getChar = fn () => TextIO.input1 TextIO.stdIn, isDebug = true, nameSpace = compositeNameSpace, exitLoop = fn _ => ! exitLoop,
                       exitOnError = false, isInteractive = true,
                       (* Don't enable debugging for anything run within the debug level. *)
                       startExec = fn () => (), endExec = fn () => () }
@@ -1771,7 +1771,7 @@ in
             end
         in
             (* Normal, non-debugging top-level loop. *)
-            fun shell () =
+            fun shell1 getChar =
             let
                 val argList = CommandLine.arguments()
                 fun switchOption option = List.exists(fn s => s = option) argList
@@ -1795,10 +1795,11 @@ in
                     end
             in
                 topLevel
-                    { isDebug = false, nameSpace = globalNameSpace, exitLoop = fn _ => false,
+                    { getChar = getChar, isDebug = false, nameSpace = globalNameSpace, exitLoop = fn _ => false,
                       isInteractive = interactive, exitOnError = exitOnError,
                       startExec = setCallBacks, endExec = clearCallBacks }
             end
+            fun shell () = shell1 (fn () => TextIO.input1 TextIO.stdIn)
 
             structure Debug =
             struct
